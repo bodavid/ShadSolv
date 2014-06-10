@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta content='text/html;charset=utf-8' http-equiv='Content-Type' />
+    <title>WebGL shader Euler PDE solver</title>
+    <script src='http://cdnjs.cloudflare.com/ajax/libs/modernizr/2.7.1/modernizr.js' type='text/javascript'></script>
+    <script src='http://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.0/jquery.js' type='text/javascript'></script>
+  </head>
+  <body>
+    <div id='header'>
+      <h1>WebGL shader Euler PDE solver</h1>
+    </div>
+    <div id='content'>   	
+	  <div id="viz">
+	  	<div class="top">
+	  		<div id="graphics-container"></div>
+	  	</div>
+	  </div>
+      <div id='description-right' style="max-width: 40%;">
+	
+  	    <p>One step performance:</p>
+  	    <ul>
+  	      <li>rendering of the data: <span id="render-time"> </span> ms</li>
+  	      <li>simple CPU calculations: <span id="cpu-time"> </span> ms</li>
+  	      <li>simple GPU calculations: <span id="gpu-time"> </span> ms</li>
+  	      <li>reading a floating point texture: 
+            <ul>
+              <li>Method 1: <span id="read-time-m1"> </span> ms</li>
+              <li>Method 2: <span id="read-time-m2"> </span> ms</li>
+            </ul>
+          </li>
+  	    </ul>
+        <p>Step: <span id="step"></span> </p>
+  	     
+  	    <p>Each 5 steps, CPU and GPU data is being compared.</p>
+  	    <p>Average difference between CPU and GPU value: <span id="error"></span> %</p>
+  	    
+  	    <h2>Parameters</h2>
+  	    <ul>
+  	    <li>Grid resolution:
+  	    <select id="grid-res">
+  	    	<option value="128">128x128</option>
+  	    	<option value="256" selected="selected">256x256</option>
+  	    	<option value="512">512x512</option>
+  	    	<option value="1024">1024x1024</option>
+  	    	<option value="1536">1536x1536</option>
+  	    </select>
+  	    </li>
+  	    </ul>
+      </div>
+    </div>
+    <script src='lightgl.js' type='text/javascript'></script>
+    <script src='eulerPDEsolver.js' type='text/javascript'></script>
+  </body>
+</html>
