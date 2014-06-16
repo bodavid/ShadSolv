@@ -10,10 +10,17 @@ $(document).ready(function () {
     TEX_WIDTH = 128,
     TEX_HEIGHT = 128,
     RANGE = 100,
+    periodic = true,
 
     plane,
     textureA,
+    textureAJ,
+    textureAK,
+    textureAL,
     textureB,
+    textureBJ,
+    textureBK,
+    textureBL,
     outputTexture,
     outputStorage,
     outputConverted,
@@ -29,7 +36,7 @@ $(document).ready(function () {
     readTime2,
     statsInterval = 5,
 
-    renderShader = new GL.Shader('\
+    renderShaderFL = new GL.Shader('\
       varying vec2 coord;\
       void main() {\
         coord = gl_TexCoord.xy;\
@@ -49,7 +56,27 @@ $(document).ready(function () {
         }\
       '),
 
-    updateShader = new GL.Shader('\
+    renderShaderBZ = new GL.Shader('\
+      varying vec2 coord;\
+      void main() {\
+        coord = gl_TexCoord.xy;\
+        gl_Position = gl_Vertex;\
+      }\
+      ', '\
+        uniform sampler2D textureJ, textureK, textureL;\
+        uniform float range;\
+        varying vec2 coord;\
+        void main() {\
+          gl_FragColor = vec4(\n\
+            0.5 + 0.5 * sin(texture2D(textureJ, coord).r / range * 12500.0),\n\
+            0.5 + 0.5 * sin(texture2D(textureK, coord).r / range * 12500.0),\n\
+       //     texture2D(texture, coord).g,\n\
+            0.5 + 0.5 * sin(texture2D(textureL, coord).r / range * 12500.0),\n\
+            1.0);\
+        }\
+      '),
+
+    updateShaderFL = new GL.Shader('\
       varying vec2 coord;\
       void main() {\
         coord = gl_Vertex.xy * 0.5 + 0.5;\
@@ -76,7 +103,57 @@ $(document).ready(function () {
         }\
       '),
 
-    // ========================================================================
+    updateShaderBZ = new GL.Shader('\
+      varying vec2 coord;\
+      void main() {\
+        coord = gl_Vertex.xy * 0.5 + 0.5;\
+        gl_Position = vec4(gl_Vertex.xyz, 1.0);\
+      }\
+      ', '\
+        uniform sampler2D textureJ, textureK, textureL;\
+        uniform vec2 delta;\
+        varying vec2 coord;\
+        void main() {\
+          vec4 dataJ = texture2D(textureJ, coord);\
+          vec4 dataK = texture2D(textureK, coord);\
+          vec4 dataL = texture2D(textureL, coord);\
+          /* calculate average neighbor value */\
+          vec2 dx = vec2(delta.x, 0.0);\
+          vec2 dy = vec2(0.0, delta.y);\
+          float averageJ = (\
+            texture2D(textureJ, coord - dx).r +\
+            texture2D(textureJ, coord - dy).r +\
+            texture2D(textureJ, coord + dx).r +\
+            texture2D(textureJ, coord + dy).r -\
+            4.0 * texture2D(textureJ, coord).r\
+          );\
+          float averageK = (\
+            texture2D(textureK, coord - dx).r +\
+            texture2D(textureK, coord - dy).r +\
+            texture2D(textureK, coord + dx).r +\
+            texture2D(textureK, coord + dy).r -\
+            4.0 * texture2D(textureK, coord).r\
+          );\
+          float averageL = (\
+            texture2D(textureL, coord - dx).r +\
+            texture2D(textureL, coord - dy).r +\
+            texture2D(textureL, coord + dx).r +\
+            texture2D(textureL, coord + dy).r -\
+            4.0 * texture2D(textureL, coord).r\
+          );\
+          dataJ += averageJ * (averageK - averageL);\n\
+          dataK += averageK * (averageL - averageJ);\n\
+          dataL += averageL * (averageJ - averageK);\n\
+          dataJ += vec4(0.0,1.0,0.0,0.0);\n\
+          gl_FragColor = dataJ;\
+        }\
+      '),
+
+      renderShader = renderShaderFL,
+      updateShader = updateShaderFL,
+      equations = "FL",
+
+  // ========================================================================
     // The first method of encoding floats based on: 
     // https://github.com/cscheid/facet/blob/master/src/shade/bits/encode_float.js
     //
@@ -300,8 +377,14 @@ $(document).ready(function () {
       // Two textures used for simple simulation. 
       // Do not use only single component textures (ALPHA/LUMINANCE), as they cause problems on some GPUs 
       // (when used as render targets).
-      textureA = new GL.Texture(TEX_WIDTH, TEX_HEIGHT, { type: gl.FLOAT, format: gl.RGBA, filter: gl.NEAREST, wrap : true });
-      textureB = new GL.Texture(TEX_WIDTH, TEX_HEIGHT, { type: gl.FLOAT, format: gl.RGBA, filter: gl.NEAREST, wrap: true });
+      textureA = new GL.Texture(TEX_WIDTH, TEX_HEIGHT, { type: gl.FLOAT, format: gl.RGBA, filter: gl.NEAREST, wrap : periodic });
+      textureAJ = new GL.Texture(TEX_WIDTH, TEX_HEIGHT, { type: gl.FLOAT, format: gl.RGBA, filter: gl.NEAREST, wrap : periodic });
+      textureAK = new GL.Texture(TEX_WIDTH, TEX_HEIGHT, { type: gl.FLOAT, format: gl.RGBA, filter: gl.NEAREST, wrap : periodic });
+      textureAL = new GL.Texture(TEX_WIDTH, TEX_HEIGHT, { type: gl.FLOAT, format: gl.RGBA, filter: gl.NEAREST, wrap : periodic });
+      textureB = new GL.Texture(TEX_WIDTH, TEX_HEIGHT, { type: gl.FLOAT, format: gl.RGBA, filter: gl.NEAREST, wrap: periodic });
+      textureBJ = new GL.Texture(TEX_WIDTH, TEX_HEIGHT, { type: gl.FLOAT, format: gl.RGBA, filter: gl.NEAREST, wrap: periodic });
+      textureBK = new GL.Texture(TEX_WIDTH, TEX_HEIGHT, { type: gl.FLOAT, format: gl.RGBA, filter: gl.NEAREST, wrap: periodic });
+      textureBL = new GL.Texture(TEX_WIDTH, TEX_HEIGHT, { type: gl.FLOAT, format: gl.RGBA, filter: gl.NEAREST, wrap: periodic });
       // Texture used for reading data from GPU.
       outputTexture = new GL.Texture(TEX_WIDTH, TEX_HEIGHT, { type: gl.UNSIGNED_BYTE, format: gl.RGBA, filter: gl.NEAREST });
       outputStorage = new Uint8Array(TEX_WIDTH * TEX_HEIGHT * 4);
@@ -347,12 +430,27 @@ $(document).ready(function () {
       gl.clear(gl.COLOR_BUFFER_BIT);
       // Set viewport as GPGPU operations can modify it.
       gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
-      textureA.bind(0);
-      renderShader.uniforms({
-        texture: 0,
-        range: RANGE
-      }).draw(plane);
-      textureA.unbind(0);
+      if (equations == "FL") {
+        textureA.bind(0);
+        renderShader.uniforms({
+          texture: 0,
+          range: RANGE
+        }).draw(plane);
+        textureA.unbind(0);
+      } else {
+        textureAJ.bind(0);
+        textureAK.bind(1);
+        textureAL.bind(2);
+        renderShader.uniforms({
+          textureJ: 0,
+          textureK: 1,
+          textureL: 2,
+          range: RANGE
+        }).draw(plane);
+        textureAJ.unbind(0);
+        textureAK.unbind(1);
+        textureAL.unbind(2);
+      }
       gl.finish();
     },
 
@@ -375,13 +473,37 @@ $(document).ready(function () {
     },
 
     simulationStepGPU = function () {
+      if (equations == "FL") {
       textureB.drawTo(function () {
-        textureA.bind();
-        updateShader.uniforms({
-          delta: [1 / TEX_WIDTH, 1 / TEX_HEIGHT]
-        }).draw(plane);
-      });
-      textureB.swapWith(textureA);
+          textureA.bind();
+          updateShader.uniforms({
+            delta: [1 / TEX_WIDTH, 1 / TEX_HEIGHT]
+          }).draw(plane);
+        });
+        textureB.swapWith(textureA);
+      } else {
+        textureBJ.drawTo(function () {
+          textureAJ.bind();
+          updateShader.uniforms({
+            delta: [1 / TEX_WIDTH, 1 / TEX_HEIGHT]
+          }).draw(plane);
+        });
+        textureBK.drawTo(function () {
+          textureAK.bind();
+          updateShader.uniforms({
+            delta: [1 / TEX_WIDTH, 1 / TEX_HEIGHT]
+          }).draw(plane);
+        });
+        textureBL.drawTo(function () {
+          textureAL.bind();
+          updateShader.uniforms({
+            delta: [1 / TEX_WIDTH, 1 / TEX_HEIGHT]
+          }).draw(plane);
+        });
+        textureBJ.swapWith(textureAJ);
+        textureBK.swapWith(textureAK);
+        textureBL.swapWith(textureAL);
+      }
       gl.finish();
     },
 
@@ -463,6 +585,37 @@ $(document).ready(function () {
       step += 1;
     };
 
+  $('#eq').change(function () {
+    equations = $("#eq").val();
+    if (equations == "BZ") {
+      updateShader = updateShaderBZ,
+      renderShader = renderShaderBZ;
+    } else {
+      updateShader = updateShaderFL,
+      renderShader = renderShaderFL;
+    }
+  });
+
+  $('#bc').change(function () {
+    var val;
+    val = $("#bc").val();
+    if (val == "ph") {
+      periodicHorizontally = true;
+      periodicVertically = false;
+    } else if (val == "pv") {
+      periodicHorizontally = false;
+      periodicVertically = true;
+    } else if (val == "np") {
+//      periodicHorizontally = false;
+//      periodicVertically = false;
+      periodic = false;
+    } else {
+//      periodicHorizontally = true;
+//      periodicVertically = true;
+      periodic = true;
+    }
+  });
+
   $('#grid-res').change(function () {
     var val;
     val = $("#grid-res").val();
@@ -472,7 +625,7 @@ $(document).ready(function () {
     initialTest();  
   });
   $('#grid-res').change();
-  
+
   $('#graphics-container').append(gl.canvas);
   gl.ondraw = onDrawCallback;
   gl.animate();

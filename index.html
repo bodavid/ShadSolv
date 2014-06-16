@@ -3,8 +3,11 @@
   <head>
     <meta content='text/html;charset=utf-8' http-equiv='Content-Type' />
     <title>WebGL shader Euler PDE solver</title>
-    <script src='http://cdnjs.cloudflare.com/ajax/libs/modernizr/2.7.1/modernizr.js' type='text/javascript'></script>
-    <script src='http://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.0/jquery.js' type='text/javascript'></script>
+    <script src='http://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.1/jquery.js' type='text/javascript'></script>
+    <script src='https://code.jquery.com/jquery-2.1.1.js' type='text/javascript'></script>
+    <script type="text/javascript"
+        src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+    </script>
   </head>
   <body>
     <div id='header'>
@@ -43,7 +46,21 @@
   	    	<option value="256" selected="selected">256x256</option>
   	    	<option value="512">512x512</option>
   	    	<option value="1024">1024x1024</option>
-  	    	<option value="1536">1536x1536</option>
+  	    	<option value="2048">2048x2048</option>
+  	    </select>
+  	    </li>
+  	    <li>Equations:
+  	    <select id="eq">
+  	    	<option value="FL" selected="selected">Ficks law of diffusion</option>
+  	    	<option value="BZ">Belousov-Zhabotinsky</option>
+  	    </select>
+  	    </li>
+  	    <li>Boundary conditions:
+  	    <select id="bc">
+  	    	<!--<option value="ph" selected="selected">Periodic horizontally</option>-->
+  	    	<!--<option value="pv" selected="selected">Periodic vertically</option>-->
+  	    	<option value="phv">Periodic both directions</option>
+  	    	<option value="np">Not periodic</option>
   	    </select>
   	    </li>
   	    </ul>
